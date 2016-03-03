@@ -1,1 +1,0 @@
-This is a march madness predictor for the kaggle competition
