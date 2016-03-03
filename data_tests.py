@@ -1,5 +1,7 @@
 import numpy as np
 import csv
+import networkx as nx
+#import pandas as pd
 syear=2003
 eyear=2016
 
@@ -68,8 +70,32 @@ def calc_wins(seasons,team_stats,teams):
     return team_statmat
 
 
-
-
+def create_schedule_graph(seasons,teams):
+    #let's create a directional graph of teams who played each other so we can create a Page rank
+    #teams =[t[1] for t in teams[1:]]
+    t_lookup={int(t[0]):t[1] for t in teams[1:]}
+    print teams
+    teams =[int(t[0]) for t in teams[1:]]
+    G=nx.DiGraph()
+    G.add_nodes_from(teams)
+    G_w=G.copy()
+    games=seasons[np.where((seasons['Season']==2015))]
+    for game in games:
+        #add a directional endorsement from the losing team to winning team
+        G.add_weighted_edges_from([(game['Lteam'],game['Wteam'],1)])
+        # weight by win % squared
+        G_w.add_weighted_edges_from([(game['Lteam'],game['Wteam'],(game['Wscore']/game['Lscore'])**2)])
+    pr=nx.pagerank(G, alpha=0.9)
+    pr_w=nx.pagerank(G_w, alpha=0.9)
+    ranks=[]
+    ranks_w=[]
+    for r in pr:
+        ranks.append((t_lookup[r],pr[r]))
+    for r in pr_w:
+        ranks_w.append((t_lookup[r],pr_w[r]))
+    sorted_pr = sorted(ranks, key=lambda tup: tup[1],reverse=True)
+    sorted_pr_w = sorted(ranks_w, key=lambda tup: tup[1],reverse=True)
+    return sorted_pr,sorted_pr_w
 
 def main():
     derive_team_stats=1
@@ -79,6 +105,7 @@ def main():
     #Season,Daynum,Wteam,Wscore,Lteam,Lscore,Wloc,Numot,Wfgm,Wfga,Wfgm3,Wfga3,Wftm,Wfta,Wor,Wdr,Wast,Wto,Wstl,Wblk,Wpf,Lfgm,Lfga,Lfgm3,Lfga3,Lftm,Lfta,Lor,Ldr,Last,Lto,Lstl,Lblk,Lpf
     seasons=load_data_num(datadir+'RegularSeasonDetailedResults.csv')
     teams=load_data(datadir+'Teams.csv')
+    sorted_pr,sorted_pr_w=create_schedule_graph(seasons,teams)
     if derive_team_stats==1:
         teamstats=compile_team_metrics(seasons)
 
